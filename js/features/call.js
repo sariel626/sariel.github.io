@@ -5,7 +5,11 @@
     const KEY_POS      = 'callWindowPos';
     const KEY_SIZE     = 'callWindowSize';
     const KEY_PILL_POS = 'callPillPos';
-    const BG_LF_KEY    = 'callBgImageData';
+    // 之前这个key完全没加前缀（既不是APP_PREFIX+sid，也不是APP_PREFIX），云同步/本地选择性恢复
+    // 那套按key名字匹配的逻辑根本认不出它，形同被漏掉。改成跟其他全局key一样带上APP_PREFIX；
+    // LEGACY是老用户可能已经存过的没前缀的那份，读的时候兜底一下顺便悄悄搬过去，不丢已有背景
+    const BG_LF_KEY        = (window.APP_PREFIX || 'CHAT_APP_V3_') + 'callBgImageData';
+    const BG_LF_KEY_LEGACY = 'callBgImageData';
 
     const S = {
         enabled:         localStorage.getItem(KEY_ENABLED) !== 'false',
@@ -33,12 +37,29 @@
 
     function loadBg() {
         if (!window.localforage) return;
-        localforage.getItem(BG_LF_KEY).then(v => { if (v) { S.bgImage = v; applyBg(); } }).catch(() => {});
+        localforage.getItem(BG_LF_KEY).then(v => {
+            if (v) { S.bgImage = v; applyBg(); return; }
+            // 新key是空的——看看老用户是不是还有存量数据留在没前缀的老key里，
+            // 有的话读出来用，并顺手搬到新key，之后就都走新key了
+            localforage.getItem(BG_LF_KEY_LEGACY).then(legacy => {
+                if (!legacy) return;
+                S.bgImage = legacy;
+                applyBg();
+                localforage.setItem(BG_LF_KEY, legacy).catch(() => {});
+                localforage.removeItem(BG_LF_KEY_LEGACY).catch(() => {});
+            }).catch(() => {});
+        }).catch(() => {});
     }
     function saveBg(d) {
         if (!d || !window.localforage) return;
         localforage.setItem(BG_LF_KEY, d).catch(() => {});
     }
+    // 给云端迁移脚本用的重新加载钩子，道理跟头像那个一样：迁移是直接写 localforage 把背景换成
+    // oss:// 引用，不走这里，S.bgImage 内存不刷新的话，下次 saveBg() 又会把旧base64存回去
+    window._refreshCallBgFromStorage = function () {
+        if (!window.localforage) return Promise.resolve();
+        return localforage.getItem(BG_LF_KEY).then(v => { if (v) { S.bgImage = v; applyBg(); } });
+    };
 
     const SVG_HU = `<svg viewBox="0 0 24 24" fill="none" style="display:block;width:100%;height:100%;">
   <path d="M6.6 10.8c1.4 2.8 3.7 5.1 6.5 6.5l2.2-2.2c.28-.27.68-.36 1.03-.24 1.1.37 2.3.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.56 21 3 13.44 3 4c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.28.2 2.5.57 3.57.11.35.03.74-.24 1.02L6.6 10.8z" fill="white"/>
@@ -524,14 +545,68 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         const b = document.getElementById('call-mini-timer');
         if (a) a.textContent = t;
         if (b) b.textContent = t;
+        // 闪退恢复用：节流写盘心跳
+        tryHeartbeatCallSession();
         S.timerRAF = requestAnimationFrame(tick);
+    }
+
+    // ─── 通话闪退恢复：live session 持久化 ─────────────
+    function getCallSessionKey() {
+        return (typeof getStorageKey === 'function')
+            ? getStorageKey('callLiveSession')
+            : (window.APP_PREFIX || 'CHAT_APP_V3_') + 'callLiveSession';
+    }
+    let _lastCallHeartbeatTs = 0;
+    function writeCallSession() {
+        try {
+            const payload = {
+                startTs: S.startTime || Date.now(),
+                heartbeatTs: Date.now(),
+                isPartnerCall: !!S.isPartnerCall,
+                bgImage: S.bgImage || null,
+                immersive: !!S.immersive,
+                minimized: !!S.minimized
+            };
+            localforage.setItem(getCallSessionKey(), payload).catch(() => {});
+            _lastCallHeartbeatTs = Date.now();
+        } catch (e) {}
+    }
+    function tryHeartbeatCallSession() {
+        if (!S.startTime) return; // 连接中阶段不写心跳
+        if (Date.now() - _lastCallHeartbeatTs < 10000) return; // 10秒节流
+        writeCallSession();
+    }
+    function clearCallSession() {
+        try {
+            // 用扫描方式删除所有 callLiveSession 相关 key
+            localforage.keys().then(function(keys) {
+                const targets = keys.filter(function(k) {
+                    return k.indexOf('callLiveSession') !== -1;
+                });
+                Promise.all(targets.map(function(k) {
+                    return localforage.removeItem(k).catch(function() {});
+                }));
+            }).catch(function() {});
+        } catch (e) {}
+        _lastCallHeartbeatTs = 0;
     }
 
     function applyBg() {
         const img = document.getElementById('call-bg-img');
         if (!img) return;
-        if (S.bgImage) { img.src = S.bgImage; img.style.display = 'block'; }
-        else { img.src = ''; img.style.display = 'none'; }
+        if (S.bgImage) {
+            img.style.display = 'block';
+            // 配置了云端之后，S.bgImage 可能是迁移出来的 oss:// 引用，直接当 src 用浏览器认不出协议，
+            // 要走 CloudMedia 懒加载解析成真正的图片地址——跟头像那处是同一个坑
+            if (window.CloudMedia && window.CloudMedia.isCloudRef && window.CloudMedia.isCloudRef(S.bgImage)) {
+                window.CloudMedia.bindLazyImage(img, S.bgImage);
+            } else {
+                img.src = S.bgImage;
+            }
+        } else {
+            img.src = '';
+            img.style.display = 'none';
+        }
     }
 
     function positionWindow() {
@@ -626,6 +701,8 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                 S.startTime = Date.now();
                 if (conn) conn.classList.remove('visible');
                 if (body) body.style.display = '';
+                // 通话接通：立即写入第一次心跳
+                writeCallSession();
                 tick();
             }, 1400 + Math.random() * 1400);
         }
@@ -637,6 +714,9 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         S.active = false; S.startTime = null;
         cancelAnimationFrame(S.timerRAF);
         clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
+
+        // 清除闪退恢复用的 live session
+        clearCallSession();
 
         ['call-window','call-mini-pill','call-incoming-overlay'].forEach(id => {
             const e = document.getElementById(id);
@@ -661,11 +741,28 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
 
     function showIncomingCall() {
         if (!S.enabled || S.active) return;
+        if (typeof window._cinemaShouldBlockInterruptions === 'function' && window._cinemaShouldBlockInterruptions()) return; // 观影中/快到观影时间不弹通话邀请
         const ov = document.getElementById('call-incoming-overlay');
         if (!ov) return;
         fillAv('call-inc-avatar'); fillNm('call-inc-name');
         ov.classList.add('visible');
         clearTimeout(S.incomingTimer);
+
+        // 播放视频通话邀请音效
+        try {
+            if (typeof playSound === 'function') playSound('invite_videocall');
+        } catch (e) { console.warn('[call] invite sound error:', e); }
+
+        // 后台推送通知（仅当页面在后台 + 用户开启了通知）
+        try {
+            if (typeof window._sendPartnerNotification === 'function') {
+                const partnerName = getName();
+                window._sendPartnerNotification(
+                    partnerName + ' 正在邀请你视频通话',
+                    '快接听吧 📹'
+                );
+            }
+        } catch (e) { console.warn('[call] invite notification error:', e); }
 
         const autoRejectChance = 0.30;
         if (Math.random() < autoRejectChance) {
@@ -673,6 +770,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             S.incomingTimer = setTimeout(() => {
                 if (!ov.classList.contains('visible')) return;
                 ov.classList.remove('visible');
+                try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
                 const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
                 const partnerName = getName();
                 const rejectLabels = [
@@ -688,20 +786,18 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             S.incomingTimer = setTimeout(() => {
                 if (!ov.classList.contains('visible')) return;
                 ov.classList.remove('visible');
+                try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
                 const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
                 sendCallEvent('fa-phone-slash', `${myName}未接听 ${getName()} 的来电`, null);
-            }, 22000);
+            }, 60000);
         }
     }
 
     function scheduleRandomCall() {
+        // v2.5: 随机来电已合并到 companion.js 统一调度（50% 陪伴邀请 / 50% 通话）
+        // 这里禁用,避免重复触发
         clearTimeout(S.randomCallTimer);
-        if (!S.enabled) return;
-        const ms = (15 + Math.random() * 45) * 60 * 1000;
-        S.randomCallTimer = setTimeout(() => {
-            if (S.enabled && !S.active && Math.random() < 0.25) showIncomingCall();
-            scheduleRandomCall();
-        }, ms);
+        return;
     }
 
     function minimizeWindow() {
@@ -830,12 +926,15 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         document.getElementById('call-inc-reject')?.addEventListener('click', () => {
             document.getElementById('call-incoming-overlay')?.classList.remove('visible');
             clearTimeout(S.incomingTimer);
+            try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
             const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
             sendCallEvent('fa-phone-slash', `${myName}拒绝了 ${getName()} 的通话`, null);
         });
         document.getElementById('call-inc-accept')?.addEventListener('click', () => {
             document.getElementById('call-incoming-overlay')?.classList.remove('visible');
-            clearTimeout(S.incomingTimer); startCall(true);
+            clearTimeout(S.incomingTimer);
+            try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
+            startCall(true);
         });
 
         document.getElementById('call-hangup-btn')?.addEventListener('click', endCall);
@@ -892,7 +991,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         initDrag(); initPillDrag(); initResize();
     }
 
-    window.callFeature = { startCall, endCall, showIncomingCall, restoreWindow, minimizeWindow };
+    window.callFeature = { startCall, endCall, showIncomingCall, restoreWindow, minimizeWindow, isActive: () => S.active };
 
     function init() {
         injectCSS();
@@ -926,4 +1025,51 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     }
 
     init();
+
+    // v2.5: 暴露给 companion.js 用于统一来电调度
+    window._callModule = {
+        showIncomingCall: () => {
+            if (S.enabled && !S.active) showIncomingCall();
+        },
+        isEnabled: () => S.enabled,
+
+        // 闪退恢复用
+        getCallSessionKey: getCallSessionKey,
+        clearCallSession: clearCallSession,
+        // 直接恢复一个通话（不弹来电、不弹窗，直接进入通话页面）
+        resumeFromSession: function(session) {
+            if (!session || !S.enabled) return false;
+            if (S.active) return false; // 已经在通话中，不打扰
+            try {
+                S.active = true;
+                S.startTime = session.startTs;  // 沿用真实开始时间，时长自动接续
+                S.elapsed = Date.now() - session.startTs;
+                S.minimized = !!session.minimized;
+                S.isPartnerCall = !!session.isPartnerCall;
+                S.immersive = !!session.immersive;
+                if (session.bgImage) S.bgImage = session.bgImage;
+
+                document.getElementById('call-window')?.classList.remove('immersive');
+                ['call-inc-avatar','call-conn-avatar','call-win-avatar','call-mini-av'].forEach(fillAv);
+                ['call-conn-name','call-win-name','call-mini-name'].forEach(fillNm);
+                applyBg(); positionWindow();
+
+                const win  = document.getElementById('call-window');
+                const body = document.getElementById('call-window-body');
+                const conn = document.getElementById('call-connecting-state');
+                if (win)    win.classList.add('visible');
+                if (conn)   conn.classList.remove('visible'); // 跳过"连接中"
+                if (body)   body.style.display = '';
+
+                if (session.immersive && win) win.classList.add('immersive');
+
+                // 重新启动 tick
+                tick();
+                return true;
+            } catch (e) {
+                console.warn('[call] resume failed', e);
+                return false;
+            }
+        }
+    };
 })();

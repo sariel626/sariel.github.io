@@ -186,7 +186,7 @@
 
 (function() {
     var KEY = 'keepaliveAudioEnabled';
-    var SRC = 'https://files.catbox.moe/0tbopr.mp3';
+    var SRC = 'assets/audio/silence.mp3';
     var _audio = null;
     var _unlockBound = false;
 
@@ -200,6 +200,7 @@
         _audio.preload = 'auto';
         _audio.addEventListener('play',  function(){ _setUI(true);  });
         _audio.addEventListener('pause', function(){ _setUI(false); });
+        window._debugKeepaliveAudio = _audio;
         return _audio;
     }
 
@@ -209,12 +210,16 @@
         var sw   = document.getElementById('keepalive-audio-switch');
         var row  = document.getElementById('keepalive-bar-row');
 
-        if (sw)   sw.classList.toggle('active', _get());
+        if (sw) {
+            sw.classList.toggle('active', _get());
+            var toggleRow = document.getElementById('keepalive-audio-toggle');
+            if (toggleRow) toggleRow.classList.toggle('active', _get());
+        }
         if (dot) {
             dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
         }
         if (desc) {
-            if (!_get())      desc.textContent = '静音循环音频，防止页面被系统挂起';
+            if (!_get())      desc.textContent = '保持后台运行，不错过ta的消息';
             else if (playing) desc.textContent = '运行中 · 页面已保活';
             else              desc.textContent = '等待交互后启动…';
         }
@@ -250,11 +255,13 @@
         if (next) {
             _start();
             if (typeof showNotification === 'function') showNotification('保活音频已开启 🎵', 'success', 2000);
+            // 立即更新开关颜色，不等待异步 play() 返回
+            _setUI(true);
         } else {
             _stop();
             if (typeof showNotification === 'function') showNotification('保活音频已关闭', 'info', 1500);
+            _setUI(false);
         }
-        _setUI(next && _audio && !_audio.paused);
     };
 
     document.addEventListener('visibilitychange', function(){
@@ -349,15 +356,42 @@
         out.innerHTML = html;
     };
 
+    // 选日期直接跳转——不看聊天内容，只看这一天有没有消息，有就跳到当天第一条
+    window._jumpToDate = function() {
+        var inp = document.getElementById('msg-jump-date');
+        if (!inp || !inp.value) {
+            if (typeof showNotification === 'function') showNotification('请先选择日期', 'info');
+            return;
+        }
+        if (typeof messages === 'undefined' || !messages || !messages.length) {
+            if (typeof showNotification === 'function') showNotification('暂无聊天记录', 'info');
+            return;
+        }
+        var targetDateStr = new Date(inp.value + 'T00:00:00').toDateString();
+        var found = messages.find(function(m) { return new Date(m.timestamp).toDateString() === targetDateStr; });
+        if (!found) {
+            if (typeof showNotification === 'function') showNotification('这天没有聊天记录', 'info');
+            return;
+        }
+        window._scrollToMsg(found.id);
+    };
+
     window._scrollToMsg = function(id) {
-        var el = document.querySelector('[data-id="'+id+'"]') || document.querySelector('[data-message-id="'+id+'"]');
+        var el = document.querySelector('[data-id="'+id+'"]') || document.querySelector('[data-message-id="'+id+'"]') || document.querySelector('[data-msg-id="'+id+'"]');
+        function closeStatsModal() {
+            var m = document.getElementById('stats-modal');
+            if (m && typeof hideModal==='function') setTimeout(function(){ hideModal(m); }, 350);
+        }
         if (el) {
             el.scrollIntoView({behavior:'smooth',block:'center'});
             el.style.transition='background .3s ease';
             el.style.background='rgba(var(--accent-color-rgb),.14)';
             setTimeout(function(){ el.style.background=''; }, 1800);
-            var m = document.getElementById('stats-modal');
-            if (m && typeof hideModal==='function') setTimeout(function(){ hideModal(m); }, 350);
+            closeStatsModal();
+        } else if (typeof window._jumpToMessage==='function' && window._jumpToMessage(id)) {
+            // 消息不在当前渲染范围内（可能是很久以前的），走"定位到某条消息"这条路，
+            // 只渲染目标消息附近一小段，不会因为聊天记录长就卡顿
+            closeStatsModal();
         } else {
             if (typeof showNotification==='function') showNotification('消息不在当前视图中','info',2000);
         }
@@ -443,7 +477,15 @@ function showEmojiTab() {
     stickerLibrary.forEach(src => {
         const item = document.createElement('div');
         item.className = 'picker-item';
-        item.innerHTML = `<img src="${src}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`;
+        // 阶段三B：识别 oss:// 走懒加载
+        const isCloud = typeof src === 'string' && src.indexOf('oss://') === 0;
+        item.innerHTML = `<img style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`;
+        const imgEl = item.querySelector('img');
+        if (isCloud) {
+            if (window.CloudMedia) window.CloudMedia.bindLazyImage(imgEl, src);
+        } else {
+            imgEl.src = src;
+        }
         item.onclick = () => {
             if (isBatchMode) {
                 batchMessages.push({ id: Date.now() + batchMessages.length, text: '', image: src });
@@ -543,6 +585,9 @@ function showPokeTab() {
     `;
     customBtn.onclick = () => {
         document.getElementById('user-sticker-picker').classList.remove('active');
+        if (DOMElements.pokeModal.input) {
+            DOMElements.pokeModal.input.value = settings.myPokeText || '';
+        }
         showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
     };
     area.appendChild(customBtn);
@@ -720,18 +765,66 @@ function showPokeTab() {
                 sendBtn.addEventListener('click',
                     () => {
                         if (currentImageData) {
+                            const messageId = Date.now();
+                            let imageField = currentImageData;
+                            let uploadStatus = null;
+
+                            const isBase64Img = typeof currentImageData === 'string' && currentImageData.indexOf('data:image') === 0;
+                            const cloudReady = !!(window.CloudMedia && window.CloudSync && window.CloudSync.isConnected());
+                            if (isBase64Img && cloudReady) {
+                                const taskId = 'up_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                                imageField = 'pending://' + taskId;
+                                uploadStatus = 'uploading';
+                                window.CloudMedia.queueUpload(currentImageData, 'chat-images', {
+                                    taskId: taskId,
+                                    messageId: messageId,
+                                    onSuccess: async (result) => {
+                                        const target = messages.find(m => String(m.id) === String(messageId));
+                                        if (!target) return;
+                                        target.image = result.url;
+                                        delete target.uploadStatus;
+                                        try { throttledSaveData(); } catch (e) {}
+                                        try {
+                                            const wrapper = document.querySelector('.message-wrapper[data-id="' + messageId + '"]');
+                                            if (!wrapper) return;
+                                            const wrap = wrapper.querySelector('.message-image-pending-wrap');
+                                            if (!wrap) return;
+                                            const img = wrap.querySelector('img');
+                                            const parent = wrap.parentNode;
+                                            if (!img || !parent) return;
+                                            let blobUrl = null;
+                                            try {
+                                                blobUrl = window.CloudMedia ? await window.CloudMedia.fetchUrl(result.url) : null;
+                                            } catch (fetchErr) {
+                                                console.warn('[cloud-media] 上传完拉图失败，继续显示本地图', fetchErr);
+                                            }
+                                            img.removeAttribute('data-pending-ref');
+                                            img.setAttribute('onclick', "viewImage('" + result.url + "')");
+                                            if (blobUrl) {
+                                                img.src = blobUrl;
+                                            } else {
+                                                img.src = '';
+                                                img.setAttribute('data-lazy-cloud-ref', result.url);
+                                                if (window.CloudMedia) window.CloudMedia.bindLazyImage(img, result.url);
+                                            }
+                                            parent.replaceChild(img, wrap);
+                                        } catch (e) { console.warn('[cloud-media] 局部更新失败', e); }
+                                    }
+                                });
+                            }
 
                             addMessage({
-                                id: Date.now(),
+                                id: messageId,
                                 sender: 'user',
                                 text: '',
                                 timestamp: new Date(),
-                                image: currentImageData,
+                                image: imageField,
                                 status: 'sent',
                                 favorited: false,
                                 note: null,
                                 replyTo: currentReplyTo,
-                                type: 'normal'
+                                type: 'normal',
+                                uploadStatus: uploadStatus
                             });
                             playSound('send');
                             currentReplyTo = null;
@@ -1517,22 +1610,8 @@ window.updateDynamicNames = function() {
         var continueBtn = document.getElementById('continue-btn');
         if (continueBtn) continueBtn.title = '让' + pName + '继续说';
 
-        var envInfo = document.querySelector('.env-send-info');
-        if (envInfo) {
-            var textNodes = Array.from(envInfo.childNodes).filter(n => n.nodeType === 3);
-            textNodes.forEach(function(n) {
-                if (n.textContent.includes('对方将在') || n.textContent.includes('小时内回信')) {
-                    n.textContent = pName + ' 将在 10-24 小时内回信（8-12 句话）';
-                }
-            });
-        }
-
-        setDgLabel('dg-section-label-partner', pName + ' 今日状态');
-        setDgLabel('dg-weather-label', pName + ' 的天气');
-        setDgLabel('dg-status-label', pName + ' 的状态');
-
         var envInfoSpan = document.getElementById('env-reply-time-info');
-        if (envInfoSpan) envInfoSpan.textContent = pName + ' 将在 10-24 小时内回信（8-12 句话）';
+        if (envInfoSpan) envInfoSpan.textContent = '传递你的心意吧';
 
         var pokeInput = document.getElementById('poke-input');
         if (pokeInput) pokeInput.placeholder = '例如：拍了拍"' + pName + '"的肩膀';
@@ -1612,4 +1691,3 @@ window.tryShowDailyGreeting = function() {
         if (modal) modal.classList.remove('hidden');
     } catch(e) { console.warn('Daily greeting show error:', e); }
 };
-
