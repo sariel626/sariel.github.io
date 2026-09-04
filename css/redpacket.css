@@ -1,0 +1,610 @@
+/* ============================================================
+   redpacket.css — 红包功能样式（发红包 / 查看余额 / 聊天气泡 / 领取动画）
+   视觉风格对齐微信红包：中国红 + 鎏金，圆角卡片，跟随应用主题的中性底
+   ============================================================ */
+
+/* ---------- 红包主色 ---------- */
+:root {
+    --rp-red: #e64340;
+    --rp-red-dark: #c9302c;
+    --rp-red-deep: #a52724;
+    --rp-red-bg: linear-gradient(145deg, #fa5151 0%, #e64340 55%, #cf3633 100%);
+    --rp-gold: #f8d775;
+    --rp-gold-light: #fdeab0;
+    --rp-gold-deep: #d4a83c;
+    --rp-btn: linear-gradient(180deg, #ff6a5b 0%, #e64340 100%);
+    --rp-btn-hover: linear-gradient(180deg, #ff7a6c 0%, #ef4b47 100%);
+}
+
+/* ---------- 红包菜单面板（底部弹出） ---------- */
+.rp-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 9500;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+}
+.rp-sheet.show { display: flex; }
+.rp-sheet-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.rp-sheet.show .rp-sheet-mask { opacity: 1; }
+.rp-sheet-panel {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    background: var(--secondary-bg, #fff);
+    border-radius: 20px 20px 0 0;
+    padding: 26px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.16);
+}
+.rp-sheet.show .rp-sheet-panel { transform: translateY(0); }
+
+.rp-sheet-packet {
+    width: 132px;
+    height: 96px;
+    margin: 0 auto 14px;
+    border-radius: 14px;
+    background: var(--rp-red-bg);
+    box-shadow: 0 10px 26px rgba(229, 67, 64, 0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.25);
+}
+.rp-sheet-packet::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 10px;
+    border: 1.5px dashed rgba(255,255,255,0.4);
+}
+.rp-sheet-packet-seal {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0c860 55%, #d4a83c);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.25), inset 0 1px 2px rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: #9c2f1f;
+    font-weight: 900;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 1px;
+}
+.rp-sheet-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+}
+.rp-sheet-btns {
+    display: flex;
+    gap: 12px;
+}
+.rp-sheet-btn {
+    flex: 1;
+    height: 46px;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    font-family: 'Noto Serif SC', serif;
+}
+.rp-sheet-btn:active { transform: scale(0.97); }
+.rp-sheet-btn-primary {
+    background: var(--rp-btn);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(229, 67, 64, 0.35);
+}
+.rp-sheet-btn-primary:hover { background: var(--rp-btn-hover); }
+.rp-sheet-btn-secondary {
+    background: var(--message-received-bg, #f0f0f0);
+    color: var(--text-primary, #1a1a1a);
+    border: 1px solid var(--border-color, #ebebeb);
+}
+
+/* ---------- 发红包弹窗 ---------- */
+.rp-send-content {
+    max-width: 360px;
+    width: 92%;
+    background: var(--secondary-bg, #fff);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+}
+.rp-send-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border-color, #ebebeb);
+}
+.rp-send-header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 1px;
+}
+.rp-close-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: var(--message-received-bg, #f0f0f0);
+    color: var(--text-secondary, #7a7a7a);
+    border-radius: 50%;
+    font-size: 15px;
+    cursor: pointer;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.rp-close-btn:hover { background: rgba(var(--accent-color-rgb,197,164,126), 0.16); color: var(--text-primary); }
+
+.rp-send-body {
+    padding: 18px 18px 20px;
+}
+.rp-send-packet {
+    width: 100%;
+    height: 132px;
+    border-radius: 16px;
+    background: var(--rp-red-bg);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 30px rgba(229, 67, 64, 0.35);
+    border: 1px solid rgba(255,255,255,0.25);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.rp-send-packet::before {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border-radius: 11px;
+    border: 1.5px dashed rgba(255,255,255,0.35);
+    pointer-events: none;
+}
+.rp-send-packet-seal {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0c860 55%, #d4a83c);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25), inset 0 1px 2px rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    color: #9c2f1f;
+    font-weight: 900;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+.rp-send-packet-text {
+    color: #ffe9a8;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 3px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.rp-amount-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.rp-amount-symbol {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+}
+.rp-amount-input {
+    width: 160px;
+    border: none;
+    border-bottom: 2px solid var(--border-color, #ebebeb);
+    background: transparent;
+    font-size: 34px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-primary, #1a1a1a);
+    outline: none;
+    padding: 2px 0;
+    font-family: 'Noto Serif SC', serif;
+    transition: border-color 0.2s;
+}
+.rp-amount-input:focus { border-color: var(--rp-red); }
+.rp-amount-input::-webkit-outer-spin-button,
+.rp-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.rp-amount-input[type=number] { -moz-appearance: textfield; }
+
+.rp-balance-line {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary, #7a7a7a);
+    margin-bottom: 14px;
+}
+.rp-balance-line b { color: var(--rp-red); font-weight: 700; }
+
+.rp-greeting-input {
+    width: 100%;
+    height: 42px;
+    border: 1px solid var(--border-color, #ebebeb);
+    border-radius: 12px;
+    background: var(--primary-bg, #f9f9f9);
+    padding: 0 14px;
+    font-size: 14px;
+    color: var(--text-primary, #1a1a1a);
+    outline: none;
+    margin-bottom: 10px;
+    font-family: 'Noto Serif SC', serif;
+    transition: border-color 0.2s;
+}
+.rp-greeting-input:focus { border-color: rgba(var(--accent-color-rgb,197,164,126), 0.5); }
+.rp-greeting-input::placeholder { color: var(--text-secondary, #7a7a7a); opacity: 0.75; }
+
+.rp-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.rp-preset-chip {
+    border: 1px solid var(--border-color, #ebebeb);
+    background: var(--primary-bg, #f9f9f9);
+    color: var(--text-secondary, #7a7a7a);
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-family: 'Noto Serif SC', serif;
+}
+.rp-preset-chip:hover, .rp-preset-chip.active {
+    background: rgba(230, 67, 64, 0.1);
+    border-color: var(--rp-red);
+    color: var(--rp-red);
+}
+
+.rp-send-btn {
+    width: 100%;
+    height: 46px;
+    border: none;
+    border-radius: 14px;
+    background: var(--rp-btn);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(229, 67, 64, 0.32);
+    transition: all 0.18s;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 2px;
+}
+.rp-send-btn:hover { background: var(--rp-btn-hover); }
+.rp-send-btn:active { transform: scale(0.98); }
+.rp-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- 余额设置弹窗 ---------- */
+.rp-balance-content {
+    max-width: 340px;
+    width: 90%;
+    background: var(--secondary-bg, #fff);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+}
+.rp-balance-title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 2px;
+    padding: 16px 0 12px;
+}
+.rp-balance-body { padding: 4px 18px 20px; }
+.rp-balance-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color, #ebebeb);
+}
+.rp-balance-row:last-of-type { border-bottom: none; }
+.rp-balance-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.rp-balance-label-name { font-size: 14px; font-weight: 600; color: var(--text-primary, #1a1a1a); }
+.rp-balance-label-sub { font-size: 10px; color: var(--text-secondary, #7a7a7a); }
+.rp-balance-input {
+    width: 130px;
+    height: 38px;
+    border: 1px solid var(--border-color, #ebebeb);
+    border-radius: 10px;
+    background: var(--primary-bg, #f9f9f9);
+    text-align: right;
+    padding: 0 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--rp-red);
+    outline: none;
+    font-family: 'Noto Serif SC', serif;
+}
+.rp-balance-input:focus { border-color: var(--rp-red); }
+.rp-balance-input::-webkit-outer-spin-button,
+.rp-balance-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.rp-balance-input[type=number] { -moz-appearance: textfield; }
+
+.rp-save-btn {
+    width: 100%;
+    height: 44px;
+    border: none;
+    border-radius: 14px;
+    background: var(--rp-btn);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(229, 67, 64, 0.3);
+    transition: all 0.18s;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 2px;
+    margin-top: 6px;
+}
+.rp-save-btn:hover { background: var(--rp-btn-hover); }
+.rp-save-btn:active { transform: scale(0.98); }
+
+/* ---------- 聊天中的红包气泡 ---------- */
+.message-redpacket {
+    padding: 0 !important;
+    background: transparent !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+}
+.rp-bubble {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 168px;
+    max-width: 220px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    background: var(--rp-red-bg);
+    box-shadow: 0 6px 16px rgba(229, 67, 64, 0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+    position: relative;
+}
+.rp-bubble:hover { transform: translateY(-1px); box-shadow: 0 9px 22px rgba(229, 67, 64, 0.38); }
+.rp-bubble:active { transform: scale(0.98); }
+.rp-bubble-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0c860 55%, #d4a83c);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #9c2f1f;
+    font-weight: 900;
+    font-family: 'Noto Serif SC', serif;
+    flex-shrink: 0;
+}
+.rp-bubble-info {
+    flex: 1;
+    min-width: 0;
+}
+.rp-bubble-greeting {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Noto Serif SC', serif;
+    line-height: 1.3;
+}
+.rp-bubble-hint {
+    color: rgba(255,255,255,0.78);
+    font-size: 11px;
+    margin-top: 2px;
+    font-family: 'Noto Serif SC', serif;
+}
+.rp-bubble-arrow {
+    color: rgba(255,255,255,0.75);
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+/* 已领取状态：整体变淡、切灰红 */
+.rp-bubble.opened {
+    background: linear-gradient(145deg, #e3a0a0 0%, #d98888 55%, #ce7a7a 100%);
+    box-shadow: 0 4px 12px rgba(170, 90, 90, 0.22);
+    cursor: default;
+}
+.rp-bubble.opened .rp-bubble-greeting { color: rgba(255,255,255,0.92); }
+.rp-bubble.opened .rp-bubble-hint { color: rgba(255,255,255,0.75); }
+
+/* ---------- 领取红包全屏动画 ---------- */
+.rp-open-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9800;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(20, 10, 10, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.rp-open-overlay.show { display: flex; }
+.rp-open-inner {
+    text-align: center;
+    width: 88%;
+    max-width: 360px;
+    animation: rpOpenIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rp-open-packet {
+    width: 200px;
+    height: 148px;
+    margin: 0 auto 22px;
+    border-radius: 18px;
+    background: var(--rp-red-bg);
+    position: relative;
+    box-shadow: 0 18px 46px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.3);
+    animation: rpPacketShake 2.6s ease-in-out infinite;
+}
+.rp-open-packet::before {
+    content: "";
+    position: absolute;
+    inset: 9px;
+    border-radius: 13px;
+    border: 2px dashed rgba(255,255,255,0.4);
+}
+.rp-open-packet-seal {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0c860 55%, #d4a83c);
+    box-shadow: 0 5px 16px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #9c2f1f;
+    font-weight: 900;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 3px;
+}
+.rp-open-title {
+    color: #ffe9a8;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    font-family: 'Noto Serif SC', serif;
+    margin-bottom: 20px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.rp-open-result {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rp-open-overlay.opened .rp-open-result { opacity: 1; transform: translateY(0); }
+.rp-open-overlay.opened .rp-open-packet { animation: none; opacity: 0.25; transform: scale(0.85); filter: blur(1px); transition: all 0.4s; }
+.rp-open-overlay.opened .rp-open-title { display: none; }
+.rp-open-amount {
+    font-size: 48px;
+    font-weight: 900;
+    color: #ffe9a8;
+    font-family: 'Noto Serif SC', serif;
+    text-shadow: 0 3px 14px rgba(0,0,0,0.45);
+    line-height: 1.2;
+}
+.rp-open-from {
+    font-size: 14px;
+    color: rgba(255,255,255,0.85);
+    margin-top: 8px;
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 1px;
+}
+.rp-open-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    margin-top: 6px;
+}
+.rp-open-close {
+    margin-top: 30px;
+    padding: 9px 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Serif SC', serif;
+}
+.rp-open-close:hover { background: rgba(255,255,255,0.22); }
+
+@keyframes rpOpenIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes rpPacketShake {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    10% { transform: translateY(-6px) rotate(-1.5deg); }
+    20% { transform: translateY(2px) rotate(1deg); }
+    30% { transform: translateY(-4px) rotate(-0.8deg); }
+    40% { transform: translateY(0) rotate(0.5deg); }
+    50% { transform: translateY(-2px) rotate(0); }
+}
+
+/* ---------- 输入栏红包按钮的小红包图标 ---------- */
+.rp-input-icon {
+    display: inline-block;
+    width: 17px;
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(145deg, #fa5151, #e64340);
+    border: 1px solid rgba(255,255,255,0.35);
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(229,67,64,0.4);
+}
+.rp-input-icon::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border: 1px dashed rgba(255,255,255,0.5);
+    border-radius: 2px;
+}
+.rp-input-icon::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0c860 55%, #d4a83c);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rp-sheet-panel, .rp-open-inner, .rp-open-packet, .rp-open-result { transition: none; animation: none; }
+}

@@ -1,0 +1,467 @@
+/* ============================================================
+   pyq.css — 朋友圈（微信式动态流）样式
+   风格：灰底白卡 + 微信蓝灰昵称 + 黄色点赞区，对齐微信朋友圈视觉
+   ============================================================ */
+
+/* ---------- 朋友圈全屏页 ---------- */
+.pyq-page {
+    position: fixed;
+    inset: 0;
+    z-index: 9200;
+    background: #ededed;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+.pyq-page.show { display: flex; }
+
+.pyq-cover {
+    position: relative;
+    height: 280px;
+    flex-shrink: 0;
+    background: linear-gradient(160deg, #7fb0e0 0%, #a8c9ec 40%, #d9e6f4 100%);
+    overflow: hidden;
+}
+.pyq-cover-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+}
+.pyq-cover-mask {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.18) 100%);
+}
+.pyq-cover-actions {
+    position: absolute;
+    top: calc(14px + env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    z-index: 3;
+}
+.pyq-cover-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.22);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: all 0.18s;
+}
+.pyq-cover-btn:hover { background: rgba(0,0,0,0.38); }
+.pyq-cover-user {
+    position: absolute;
+    right: 16px;
+    bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 3;
+}
+.pyq-cover-username {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 1px;
+}
+.pyq-cover-avatar {
+    width: 62px;
+    height: 62px;
+    border-radius: 10px;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    background: #fff;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #7a7a7a);
+    font-size: 26px;
+}
+.pyq-cover-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ---------- 动态流 ---------- */
+.pyq-feed {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px 12px calc(30px + env(safe-area-inset-bottom, 0px));
+}
+.pyq-empty {
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+    padding: 60px 20px;
+    line-height: 2;
+    font-family: 'Noto Serif SC', serif;
+}
+.pyq-empty .pyq-empty-icon { font-size: 42px; opacity: 0.5; margin-bottom: 10px; }
+
+/* ---------- 动态卡片 ---------- */
+.pyq-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 13px 14px 10px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    animation: pyqCardIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes pyqCardIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.pyq-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.pyq-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--message-received-bg, #f0f0f0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #7a7a7a);
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.pyq-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pyq-card-head-main { flex: 1; min-width: 0; }
+.pyq-author {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #576b95;
+    font-family: 'Noto Serif SC', serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pyq-time {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pyq-card-delete {
+    border: none;
+    background: none;
+    color: #bbb;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.pyq-card-delete:hover { color: #e64340; background: rgba(230,67,64,0.08); }
+
+.pyq-text {
+    font-size: 14.5px;
+    color: #2b2b2b;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'Noto Serif SC', serif;
+    margin-bottom: 8px;
+}
+
+/* 图片九宫格 */
+.pyq-images { display: grid; gap: 4px; margin-bottom: 8px; }
+.pyq-images.one { grid-template-columns: repeat(1, 1fr); max-width: 190px; }
+.pyq-images.two, .pyq-images.three, .pyq-images.four { grid-template-columns: repeat(2, 1fr); }
+.pyq-images.five, .pyq-images.six { grid-template-columns: repeat(3, 1fr); }
+.pyq-images.seven, .pyq-images.eight, .pyq-images.nine { grid-template-columns: repeat(3, 1fr); }
+.pyq-images .pyq-img-item {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f0f0f0;
+    cursor: pointer;
+}
+.pyq-images .pyq-img-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.pyq-images.one .pyq-img-item { aspect-ratio: auto; }
+.pyq-images.one .pyq-img-item img { max-height: 260px; }
+
+/* 赞 / 评论 操作区 */
+.pyq-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 6px;
+}
+.pyq-action-btn {
+    border: none;
+    background: none;
+    color: #888;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+    font-family: 'Noto Serif SC', serif;
+}
+.pyq-action-btn:hover { background: rgba(0,0,0,0.05); color: #333; }
+.pyq-action-btn.liked { color: #e64340; font-weight: 600; }
+.pyq-action-btn .pyq-heart { display: inline-block; transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pyq-action-btn.liked .pyq-heart { transform: scale(1.25); }
+
+/* 赞与评论区 */
+.pyq-social {
+    background: #f7f7f5;
+    border-radius: 8px;
+    padding: 7px 10px;
+    margin-top: 8px;
+    font-size: 13px;
+    font-family: 'Noto Serif SC', serif;
+}
+.pyq-likes {
+    color: #2b2b2b;
+    line-height: 1.6;
+    word-break: break-word;
+}
+.pyq-likes i { color: #e64340; font-size: 12px; font-style: normal; margin-right: 4px; }
+.pyq-likes b { color: #576b95; font-weight: 600; }
+.pyq-likes + .pyq-comments { border-top: 1px solid #ededed; margin-top: 6px; padding-top: 6px; }
+.pyq-comment {
+    color: #2b2b2b;
+    line-height: 1.6;
+    word-break: break-word;
+}
+.pyq-comment b { color: #576b95; font-weight: 600; }
+
+/* ---------- 发表动态（底部弹出） ---------- */
+.pyq-compose {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9350;
+    background: var(--secondary-bg, #fff);
+    border-radius: 18px 18px 0 0;
+    padding: 16px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -8px 36px rgba(0,0,0,0.16);
+    transform: translateY(105%);
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    display: none;
+    max-width: 560px;
+    margin: 0 auto;
+}
+.pyq-compose.show { display: block; transform: translateY(0); }
+.pyq-compose-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.pyq-compose-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 2px;
+}
+.pyq-compose-actions { display: flex; gap: 8px; align-items: center; }
+.pyq-compose-cancel {
+    border: 1px solid var(--border-color, #ebebeb);
+    background: var(--primary-bg, #f9f9f9);
+    color: var(--text-secondary, #7a7a7a);
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Noto Serif SC', serif;
+}
+.pyq-compose-post {
+    border: none;
+    background: #d9a64b;
+    color: #fff;
+    border-radius: 999px;
+    padding: 6px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Serif SC', serif;
+    box-shadow: 0 3px 10px rgba(217,166,75,0.35);
+    transition: all 0.15s;
+}
+.pyq-compose-post:hover { background: #e0b25c; }
+.pyq-compose-post:disabled { opacity: 0.5; cursor: not-allowed; }
+.pyq-compose-text {
+    width: 100%;
+    min-height: 90px;
+    max-height: 200px;
+    border: none;
+    background: var(--primary-bg, #f9f9f9);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+    color: var(--text-primary, #1a1a1a);
+    resize: none;
+    outline: none;
+    line-height: 1.6;
+    font-family: 'Noto Serif SC', serif;
+    box-sizing: border-box;
+}
+.pyq-compose-text::placeholder { color: var(--text-secondary, #7a7a7a); opacity: 0.7; }
+.pyq-compose-media {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+.pyq-media-pick {
+    width: 60px;
+    height: 60px;
+    border: 1px dashed var(--border-color, #d0d0d0);
+    border-radius: 10px;
+    background: var(--primary-bg, #f9f9f9);
+    color: var(--text-secondary, #7a7a7a);
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.pyq-media-pick:hover { border-color: var(--accent-color, #c5a47e); color: var(--accent-color, #c5a47e); }
+.pyq-media-preview {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.pyq-media-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pyq-media-preview .pyq-media-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 10px;
+    cursor: pointer;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- 评论输入条 ---------- */
+.pyq-comment-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9360;
+    background: var(--secondary-bg, #fff);
+    border-top: 1px solid var(--border-color, #ebebeb);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    display: none;
+    gap: 8px;
+    align-items: center;
+    max-width: 560px;
+    margin: 0 auto;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+}
+.pyq-comment-bar.show { display: flex; }
+.pyq-comment-input {
+    flex: 1;
+    height: 38px;
+    border: 1px solid var(--border-color, #ebebeb);
+    border-radius: 999px;
+    background: var(--primary-bg, #f9f9f9);
+    padding: 0 16px;
+    font-size: 14px;
+    color: var(--text-primary, #1a1a1a);
+    outline: none;
+    font-family: 'Noto Serif SC', serif;
+}
+.pyq-comment-input:focus { border-color: var(--accent-color, #c5a47e); }
+.pyq-comment-send {
+    border: none;
+    background: #d9a64b;
+    color: #fff;
+    border-radius: 999px;
+    padding: 0 18px;
+    height: 38px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Serif SC', serif;
+}
+.pyq-comment-send:hover { background: #e0b25c; }
+
+/* ---------- 图片查看 ---------- */
+.pyq-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 9600;
+    background: rgba(0,0,0,0.94);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+.pyq-viewer.show { display: flex; }
+.pyq-viewer img {
+    max-width: 96vw;
+    max-height: 88vh;
+    border-radius: 8px;
+    object-fit: contain;
+}
+.pyq-viewer-close {
+    position: absolute;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.16);
+    color: #fff;
+    font-size: 17px;
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pyq-card, .pyq-compose { animation: none; transition: none; }
+}

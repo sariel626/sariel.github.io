@@ -1,0 +1,257 @@
+/* ============================================================
+   home.css — 主页（情侣空间聚合主页）样式
+   风格：深蓝星空背景 + 半透明玻璃卡片 + 双头像 + 8 宫格 + 底部入口
+   参照：用户提供的主页参考截图
+   ============================================================ */
+
+/* 全屏遮罩层：深蓝星空 */
+.home-page {
+    position: fixed;
+    inset: 0;
+    z-index: 9300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(120% 120% at 50% 0%, #232e52 0%, #161d3a 45%, #0b1026 100%);
+    overflow: hidden;
+    font-family: inherit;
+}
+.home-page.show { display: flex; }
+
+/* 星空星星 */
+.home-star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    opacity: 0.85;
+    animation: home-twinkle 2.6s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes home-twinkle {
+    0%, 100% { opacity: 0.25; transform: scale(0.7); }
+    50% { opacity: 0.95; transform: scale(1.15); }
+}
+
+/* 手机竖屏容器：把星空主页装进一个竖屏"屏幕"里 */
+.home-phone {
+    position: relative;
+    width: 420px;
+    max-width: 94vw;
+    height: 100%;
+    max-height: 780px;
+    border-radius: 26px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #1e2850 0%, #131a38 60%, #0b1026 100%);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+}
+.home-phone::after {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+/* 顶部返回 */
+.home-topbar {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 44px 18px 6px;
+}
+.home-back-btn {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s;
+}
+.home-back-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.home-topbar-title {
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+.home-topbar-right { width: 34px; }
+
+/* 双头像卡片 */
+.home-couple-card {
+    position: relative;
+    z-index: 5;
+    margin: 14px 18px 6px;
+    padding: 22px 18px 18px;
+    border-radius: 20px;
+    background: linear-gradient(140deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+    text-align: center;
+}
+.home-couple-avatars {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 10px;
+}
+.home-couple-avatar {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.home-couple-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.home-couple-heart {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff7aa2, #ff4d6d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 12px;
+    box-shadow: 0 0 12px rgba(255, 90, 120, 0.7);
+    flex-shrink: 0;
+}
+.home-couple-name {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+.home-couple-slogan {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+.home-couple-time {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+}
+.home-couple-clock { color: #fff; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.home-couple-date { color: rgba(255, 255, 255, 0.65); font-size: 12px; }
+
+/* 8 宫格 */
+.home-grid {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 12px 14px 6px;
+    align-content: start;
+}
+.home-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 12px 4px 10px;
+    border-radius: 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.18s;
+}
+.home-grid-item:hover { background: rgba(255, 255, 255, 0.08); }
+.home-grid-item:active { transform: scale(0.94); }
+.home-grid-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+.home-grid-label {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* 底部入口 */
+.home-footer {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 8px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.18);
+}
+.home-footer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 10px;
+    transition: all 0.18s;
+}
+.home-footer-item:hover { background: rgba(255, 255, 255, 0.1); }
+.home-footer-item i { font-size: 16px; }
+
+/* 主页内轻提示 toast（复用项目 toast 或自绘） */
+.home-toast {
+    position: fixed;
+    top: 18%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.78);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    z-index: 9750;
+    animation: home-toast-in 0.25s ease;
+    white-space: nowrap;
+}
+@keyframes home-toast-in {
+    from { opacity: 0; transform: translate(-50%, -8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}

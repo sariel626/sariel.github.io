@@ -1319,34 +1319,67 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
         messageHTML += `<div class="reply-indicator" data-reply-id="${msg.replyTo.id || ''}" style="cursor:pointer;" onclick="scrollToQuotedMessage(this)"><span class="reply-indicator-sender">${repliedSender}</span><span class="reply-indicator-text">${repliedText}</span></div>`;
     }
 
+    const isRedPacket = msg.type === 'redpacket';
     const isImageOnly = !msg.text && !!msg.image;
-    let content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
-    if (msg.image) {
-        // 阶段三B：识别 oss:// 走懒加载；识别 pending:// 走本地 base64 + 上传中角标
-        const isCloudImg = typeof msg.image === 'string' && msg.image.indexOf('oss://') === 0;
-        const isPendingImg = typeof msg.image === 'string' && msg.image.indexOf('pending://') === 0;
-        const imgAttrs = `class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')"`;
-        if (isCloudImg) {
-            content += `<img data-lazy-cloud-ref="${msg.image}" ${imgAttrs}>`;
-        } else if (isPendingImg) {
-            // 用一个包裹层放"上传中"角标
-            content += `<div class="message-image-pending-wrap" style="position:relative;display:inline-block;">`
-                + `<img data-pending-ref="${msg.image}" ${imgAttrs}>`
-                + `<div class="upload-indicator" style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;"><i class="fas fa-cloud-upload-alt"></i></div>`
-                + `</div>`;
-        } else {
-            content += `<img src="${msg.image}" ${imgAttrs}>`;
+    let content = '';
+    if (isRedPacket) {
+        // ── 红包气泡：微信风格红包卡片 ──
+        const rp = msg.redpacket || {};
+        const rpAmount = Number(rp.amount) || 0;
+        const rpGreeting = String(rp.greeting || '恭喜发财').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, ' ');
+        const rpOpened = rp.status === 'opened';
+        const isMyRp = msg.sender === 'user';
+        const hintText = rpOpened
+            ? (isMyRp ? ('已被领取 · ¥' + rpAmount.toFixed(2)) : ('已领取 · ¥' + rpAmount.toFixed(2)))
+            : '查看';
+        content = `<div class="rp-bubble${rpOpened ? ' opened' : ''}">
+            <div class="rp-bubble-icon">封</div>
+            <div class="rp-bubble-info">
+                <div class="rp-bubble-greeting">${rpGreeting}</div>
+                <div class="rp-bubble-hint">${hintText}</div>
+            </div>
+            ${rpOpened ? '' : '<span class="rp-bubble-arrow">›</span>'}
+        </div>`;
+    } else {
+        content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
+        if (msg.image) {
+            // 阶段三B：识别 oss:// 走懒加载；识别 pending:// 走本地 base64 + 上传中角标
+            const isCloudImg = typeof msg.image === 'string' && msg.image.indexOf('oss://') === 0;
+            const isPendingImg = typeof msg.image === 'string' && msg.image.indexOf('pending://') === 0;
+            const imgAttrs = `class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')"`;
+            if (isCloudImg) {
+                content += `<img data-lazy-cloud-ref="${msg.image}" ${imgAttrs}>`;
+            } else if (isPendingImg) {
+                // 用一个包裹层放"上传中"角标
+                content += `<div class="message-image-pending-wrap" style="position:relative;display:inline-block;">`
+                    + `<img data-pending-ref="${msg.image}" ${imgAttrs}>`
+                    + `<div class="upload-indicator" style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;"><i class="fas fa-cloud-upload-alt"></i></div>`
+                    + `</div>`;
+            } else {
+                content += `<img src="${msg.image}" ${imgAttrs}>`;
+            }
         }
     }
     messageHTML += content;
 
     const messageDiv = document.createElement('div');
-    if (isImageOnly) {
+    if (isRedPacket) {
+        messageDiv.className = `message message-${msg.sender === 'user' ? 'sent' : 'received'} message-redpacket`;
+    } else if (isImageOnly) {
         messageDiv.className = `message message-${msg.sender === 'user' ? 'sent' : 'received'} message-image-bubble-none`;
     } else {
         messageDiv.className = `message message-${msg.sender === 'user' ? 'sent' : 'received'} ${settings.bubbleStyle}`;
     }
     messageDiv.innerHTML = messageHTML;
+    if (isRedPacket) {
+        const _rp = msg.redpacket || {};
+        if (_rp.status !== 'opened') {
+            messageDiv.addEventListener('click', function () {
+                try { if (window.openRedPacket) window.openRedPacket(msg.id); } catch (e) {}
+            });
+            messageDiv.style.cursor = 'pointer';
+        }
+    }
     // 阶段三B：innerHTML 塞完后，找带 data-lazy-cloud-ref 的图绑定懒加载
     if (window.CloudMedia) {
         messageDiv.querySelectorAll('img[data-lazy-cloud-ref]').forEach(function (imgEl) {
