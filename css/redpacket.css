@@ -455,7 +455,74 @@
 .rp-bubble.opened .rp-bubble-greeting { color: rgba(255,255,255,0.92); }
 .rp-bubble.opened .rp-bubble-hint { color: rgba(255,255,255,0.75); }
 
-/* ---------- 领取红包全屏动画 ---------- */
+/* 已退回状态：整体变灰、不可点 */
+.rp-bubble.refunded {
+    background: linear-gradient(145deg, #b9bdc6 0%, #a8acb5 55%, #979ca6 100%);
+    box-shadow: 0 4px 12px rgba(120, 125, 135, 0.22);
+    cursor: default;
+}
+.rp-bubble.refunded:hover { transform: none; box-shadow: 0 4px 12px rgba(120, 125, 135, 0.22); }
+.rp-bubble.refunded .rp-bubble-greeting { color: rgba(255,255,255,0.92); }
+.rp-bubble.refunded .rp-bubble-hint { color: rgba(255,255,255,0.8); }
+
+/* 未领取红包上的"退回"小按钮（右上角） */
+.rp-bubble-refund {
+    position: absolute;
+    top: -12px;
+    right: -4px;
+    background: #fff;
+    color: #e04b4b;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 12px;
+    border: 1px solid #f3c1c1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.4;
+    z-index: 5;
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    white-space: nowrap;
+}
+.rp-bubble-refund:hover { background: #fff5f5; transform: scale(1.04); }
+
+/* ---------- 退回确认弹窗 ---------- */
+.rp-refund-content {
+    padding: 24px 26px;
+    max-width: 300px;
+    text-align: center;
+}
+.rp-refund-emoji { font-size: 34px; margin-bottom: 8px; }
+.rp-refund-title { font-size: 16px; font-weight: 800; color: #1b1b1b; margin-bottom: 8px; }
+.rp-refund-desc { font-size: 13px; line-height: 1.7; color: #666; margin-bottom: 18px; }
+.rp-refund-desc b { color: #e04b4b; }
+.rp-refund-btns { display: flex; gap: 10px; }
+.rp-refund-cancel {
+    flex: 1;
+    padding: 10px 0;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    background: #f7f7f7;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+}
+.rp-refund-ok {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ff6b6b, #e04b4b);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* ---------- 领取红包全屏动画（仿微信红包卡片：标题 + 金额 + 标签 + 状态 + 时间） ---------- */
 .rp-open-overlay {
     position: fixed;
     inset: 0;
@@ -463,7 +530,7 @@
     display: none;
     align-items: center;
     justify-content: center;
-    background: rgba(20, 10, 10, 0.88);
+    background: rgba(18, 8, 12, 0.86);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }
@@ -471,84 +538,91 @@
 .rp-open-inner {
     text-align: center;
     width: 88%;
-    max-width: 360px;
+    max-width: 340px;
     animation: rpOpenIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.rp-open-packet {
-    width: 200px;
-    height: 148px;
-    margin: 0 auto 22px;
-    border-radius: 18px;
-    background: var(--rp-red-bg);
-    position: relative;
-    box-shadow: 0 18px 46px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(255,255,255,0.3);
-    animation: rpPacketShake 2.6s ease-in-out infinite;
-}
-.rp-open-packet::before {
-    content: "";
-    position: absolute;
-    inset: 9px;
-    border-radius: 13px;
-    border: 2px dashed rgba(255,255,255,0.4);
-}
-.rp-open-packet-seal {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0c860 55%, #d4a83c);
-    box-shadow: 0 5px 16px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.75);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    color: #9c2f1f;
-    font-weight: 900;
+.rp-open-from-title {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
     font-family: 'Noto Serif SC', serif;
-    letter-spacing: 3px;
-}
-.rp-open-title {
-    color: #ffe9a8;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    font-family: 'Noto Serif SC', serif;
+    letter-spacing: 1px;
     margin-bottom: 20px;
     text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
-.rp-open-result {
-    opacity: 0;
-    transform: translateY(16px);
-    transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+.rp-open-cardbox {
+    position: relative;
+    width: 232px;
+    margin: 0 auto;
+    border-radius: 22px;
+    background: linear-gradient(150deg, #ff5d52 0%, #e64340 55%, #c02f2b 100%);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.35);
+    padding: 32px 20px 26px;
+    overflow: hidden;
+    animation: rpPacketShake 2.8s ease-in-out infinite;
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.rp-open-overlay.opened .rp-open-result { opacity: 1; transform: translateY(0); }
-.rp-open-overlay.opened .rp-open-packet { animation: none; opacity: 0.25; transform: scale(0.85); filter: blur(1px); transition: all 0.4s; }
-.rp-open-overlay.opened .rp-open-title { display: none; }
-.rp-open-amount {
-    font-size: 48px;
+.rp-open-cardbox::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 16px;
+    border: 1.5px dashed rgba(255,255,255,0.3);
+    pointer-events: none;
+}
+.rp-open-card-glow {
+    position: absolute;
+    top: -46px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 230px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(255,224,130,0.55), transparent 70%);
+    pointer-events: none;
+}
+.rp-open-card-amount {
+    font-size: 54px;
     font-weight: 900;
     color: #ffe9a8;
     font-family: 'Noto Serif SC', serif;
-    text-shadow: 0 3px 14px rgba(0,0,0,0.45);
-    line-height: 1.2;
+    line-height: 1.1;
+    text-shadow: 0 3px 14px rgba(0,0,0,0.35);
 }
-.rp-open-from {
-    font-size: 14px;
-    color: rgba(255,255,255,0.85);
-    margin-top: 8px;
+.rp-open-card-tag {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 4px 16px;
+    border-radius: 999px;
+    background: rgba(255, 233, 168, 0.2);
+    border: 1px solid rgba(255, 233, 168, 0.55);
+    color: #ffe9a8;
+    font-size: 12px;
+    letter-spacing: 2px;
+    font-family: 'Noto Serif SC', serif;
+    max-width: 88%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.rp-open-status {
+    margin-top: 22px;
+    font-size: 16px;
+    font-weight: 700;
     font-family: 'Noto Serif SC', serif;
     letter-spacing: 1px;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.3);
 }
-.rp-open-sub {
+.rp-open-status-ok { color: #8fe8b4; }
+.rp-open-status-refund { color: #ffb3a7; }
+.rp-open-time {
+    margin-top: 7px;
     font-size: 12px;
-    color: rgba(255,255,255,0.55);
-    margin-top: 6px;
+    color: rgba(255,255,255,0.6);
+    font-family: 'Noto Serif SC', serif;
 }
 .rp-open-close {
-    margin-top: 30px;
+    margin-top: 28px;
     padding: 9px 34px;
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.35);

@@ -1328,17 +1328,19 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
         const rpAmount = Number(rp.amount) || 0;
         const rpGreeting = String(rp.greeting || '恭喜发财').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, ' ');
         const rpOpened = rp.status === 'opened';
+        const rpRefunded = rp.status === 'refunded';
         const isMyRp = msg.sender === 'user';
         const hintText = rpOpened
             ? (isMyRp ? ('已被领取 · ¥' + rpAmount.toFixed(2)) : ('已领取 · ¥' + rpAmount.toFixed(2)))
-            : '查看';
-        content = `<div class="rp-bubble${rpOpened ? ' opened' : ''}">
+            : (rpRefunded ? ('已退回 · ¥' + rpAmount.toFixed(2)) : '查看');
+        content = `<div class="rp-bubble${rpOpened ? ' opened' : ''}${rpRefunded ? ' refunded' : ''}">
             <div class="rp-bubble-icon">封</div>
             <div class="rp-bubble-info">
                 <div class="rp-bubble-greeting">${rpGreeting}</div>
                 <div class="rp-bubble-hint">${hintText}</div>
             </div>
-            ${rpOpened ? '' : '<span class="rp-bubble-arrow">›</span>'}
+            ${rpOpened || rpRefunded ? '' : '<span class="rp-bubble-arrow">›</span>'}
+            ${rpOpened || rpRefunded ? '' : '<button type="button" class="rp-bubble-refund" data-msgid="' + msg.id + '">退回</button>'}
         </div>`;
     } else {
         content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
@@ -1373,12 +1375,22 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     messageDiv.innerHTML = messageHTML;
     if (isRedPacket) {
         const _rp = msg.redpacket || {};
-        if (_rp.status !== 'opened') {
-            messageDiv.addEventListener('click', function () {
-                try { if (window.openRedPacket) window.openRedPacket(msg.id); } catch (e) {}
-            });
-            messageDiv.style.cursor = 'pointer';
+        if (_rp.status === 'pending') {
+            const refundBtn = messageDiv.querySelector('.rp-bubble-refund');
+            if (refundBtn) {
+                refundBtn.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    ev.stopImmediatePropagation();
+                    ev.stopPropagation();
+                    try { if (window.refundRedPacket) window.refundRedPacket(msg.id); } catch (e) {}
+                });
+            }
         }
+        // 所有红包状态均可点开查看（pending=领取 / opened=已领取卡片 / refunded=已退回卡片）
+        messageDiv.addEventListener('click', function () {
+            try { if (window.openRedPacket) window.openRedPacket(msg.id); } catch (e) {}
+        });
+        messageDiv.style.cursor = 'pointer';
     }
     // 阶段三B：innerHTML 塞完后，找带 data-lazy-cloud-ref 的图绑定懒加载
     if (window.CloudMedia) {

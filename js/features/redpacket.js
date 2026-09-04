@@ -34,6 +34,15 @@
     const _myName   = () => (typeof settings !== 'undefined' && settings.myName) || '我';
     const _partnerName = () => (typeof settings !== 'undefined' && settings.partnerName) || '对方';
     const _fmt      = (n) => Number(n).toFixed(2);
+    const _fmtTime  = (ts) => {
+        if (!ts) return '';
+        try {
+            const d = new Date(ts);
+            if (isNaN(d.getTime())) return '';
+            const p = (n) => (n < 10 ? '0' + n : '' + n);
+            return p(d.getHours()) + ':' + p(d.getMinutes());
+        } catch (e) { return ''; }
+    };
     const _esc = (s) => String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -170,20 +179,21 @@
             </div>`;
         body.appendChild(bal);
 
-        // 4. 领取红包全屏动画
+        // 4. 领取红包全屏动画（仿微信红包卡片：金额 + 标签 + 状态 + 时间）
         const open = document.createElement('div');
         open.className = 'rp-open-overlay';
         open.id = 'rp-open-overlay';
         open.innerHTML = `
             <div class="rp-open-inner">
-                <div class="rp-open-packet"><div class="rp-open-packet-seal">封</div></div>
-                <div class="rp-open-title">恭喜发财</div>
-                <div class="rp-open-result">
-                    <div class="rp-open-amount">¥<span id="rp-open-amount">0.00</span></div>
-                    <div class="rp-open-from" id="rp-open-from">来自梦角的红包</div>
-                    <div class="rp-open-sub">已存入零钱</div>
-                    <button class="rp-open-close" id="rp-open-close-btn">好的</button>
+                <div class="rp-open-from-title" id="rp-open-from-title">来自 梦角 的红包</div>
+                <div class="rp-open-cardbox">
+                    <div class="rp-open-card-glow"></div>
+                    <div class="rp-open-card-amount">¥<span id="rp-open-amount">0.00</span></div>
+                    <div class="rp-open-card-tag" id="rp-open-card-tag">好运红包</div>
                 </div>
+                <div class="rp-open-status" id="rp-open-status">已领取</div>
+                <div class="rp-open-time" id="rp-open-time"></div>
+                <button class="rp-open-close" id="rp-open-close-btn">好的</button>
             </div>`;
         body.appendChild(open);
 
@@ -354,6 +364,22 @@
         if (!msg || !msg.redpacket) return;
         const rp = msg.redpacket;
         const isMyPacket = msg.sender === 'user';
+        const overlay = document.getElementById('rp-open-overlay');
+        const greeting = (rp.greeting || '好运红包');
+
+        // 已退回：展示红包卡片 + 已退回状态 + 退回时间
+        if (rp.status === 'refunded') {
+            if (!overlay) return;
+            overlay.querySelector('#rp-open-amount').textContent = _fmt(rp.amount);
+            overlay.querySelector('#rp-open-from-title').textContent = (isMyPacket ? '你 发来的红包' : _partnerName() + ' 发来的红包');
+            overlay.querySelector('#rp-open-card-tag').textContent = greeting;
+            overlay.querySelector('#rp-open-status').textContent = '已退回';
+            overlay.querySelector('#rp-open-status').className = 'rp-open-status rp-open-status-refund';
+            overlay.querySelector('#rp-open-time').textContent = '退回时间 ' + (_fmtTime(rp.refundedAt) || '--:--');
+            overlay.classList.add('show');
+            overlay.classList.add('opened');
+            return;
+        }
 
         if (isMyPacket) {
             // 自己发出的红包
@@ -361,16 +387,16 @@
                 _toast(_partnerName() + '还没拆开红包，等一等哦～', 'info');
                 return;
             }
-            // 已被领取：展示详情
-            const overlay = document.getElementById('rp-open-overlay');
+            // 已被领取：展示红包卡片详情
             if (overlay) {
                 overlay.querySelector('#rp-open-amount').textContent = _fmt(rp.amount);
-                overlay.querySelector('#rp-open-from').textContent = _partnerName() + '已领取你的红包';
-                overlay.querySelector('.rp-open-sub').textContent = '已被领取';
+                overlay.querySelector('#rp-open-from-title').textContent = _partnerName() + ' 已领取你的红包';
+                overlay.querySelector('#rp-open-card-tag').textContent = greeting;
+                overlay.querySelector('#rp-open-status').textContent = '已被领取';
+                overlay.querySelector('#rp-open-status').className = 'rp-open-status rp-open-status-ok';
+                overlay.querySelector('#rp-open-time').textContent = '领取时间 ' + (_fmtTime(rp.openedAt) || '--:--');
                 overlay.classList.add('show');
-                overlay.classList.remove('opened');
-                setTimeout(function () { overlay.classList.add('opened'); }, 300);
-                setTimeout(function () { overlay.classList.remove('show', 'opened'); }, 2600);
+                overlay.classList.add('opened');
             }
             return;
         }
@@ -381,12 +407,14 @@
             return;
         }
 
-        // 领取动画
-        const overlay = document.getElementById('rp-open-overlay');
+        // 领取动画（红包卡片先展示，点击后翻转显示已领取）
         if (!overlay) return;
         overlay.querySelector('#rp-open-amount').textContent = _fmt(rp.amount);
-        overlay.querySelector('#rp-open-from').textContent = '来自 ' + _partnerName() + ' 的红包';
-        overlay.querySelector('.rp-open-sub').textContent = '已存入零钱';
+        overlay.querySelector('#rp-open-from-title').textContent = '来自 ' + _partnerName() + ' 的红包';
+        overlay.querySelector('#rp-open-card-tag').textContent = greeting;
+        overlay.querySelector('#rp-open-status').textContent = '已存入零钱';
+        overlay.querySelector('#rp-open-status').className = 'rp-open-status rp-open-status-ok';
+        overlay.querySelector('#rp-open-time').textContent = '';
         overlay.classList.add('show');
         overlay.classList.remove('opened');
         setTimeout(function () {
@@ -400,6 +428,12 @@
             _save();
             _renderPacketStatus();
             if (typeof playSound === 'function') { try { playSound('message'); } catch (e) {} }
+            // 更新为已领取状态 + 时间
+            const ov2 = document.getElementById('rp-open-overlay');
+            if (ov2) {
+                ov2.querySelector('#rp-open-status').textContent = '已领取';
+                ov2.querySelector('#rp-open-time').textContent = '领取时间 ' + (_fmtTime(rp.openedAt) || '--:--');
+            }
             // 系统提示
             setTimeout(function () {
                 if (typeof addMessage === 'function') {
@@ -419,6 +453,104 @@
                 overlay.classList.remove('show', 'opened');
             }
         }, 5200);
+    };
+
+    /* ---------------- 退回红包 ---------------- */
+    function _confirmRefund(msg, isMyPacket, doRefund) {
+        _buildUI();
+        const amount = Number(msg.redpacket.amount) || 0;
+        const who = isMyPacket ? '你' : _partnerName();
+        const ov = document.createElement('div');
+        ov.className = 'modal';
+        ov.id = 'rp-refund-modal';
+        ov.style.zIndex = '9700';
+        ov.innerHTML = `
+            <div class="modal-content rp-refund-content">
+                <div class="rp-refund-emoji">↩️</div>
+                <div class="rp-refund-title">退回红包</div>
+                <div class="rp-refund-desc">确定退回这个红包（<b>¥${_fmt(amount)}</b>）吗？<br>金额将原路退还到${who}的零钱。</div>
+                <div class="rp-refund-btns">
+                    <button class="rp-refund-cancel" id="rp-refund-cancel">再想想</button>
+                    <button class="rp-refund-ok" id="rp-refund-ok">确定退回</button>
+                </div>
+            </div>`;
+        document.body.appendChild(ov);
+        ov.querySelector('#rp-refund-cancel').onclick = function () {
+            document.body.removeChild(ov);
+        };
+        ov.querySelector('#rp-refund-ok').onclick = function () {
+            document.body.removeChild(ov);
+            doRefund();
+        };
+        _showModal(ov);
+    }
+
+    window.refundRedPacket = function (msgId) {
+        _buildUI();
+        if (typeof messages === 'undefined' || !Array.isArray(messages)) return;
+        const msg = messages.find(function (m) { return String(m.id) === String(msgId); });
+        if (!msg || !msg.redpacket) return;
+        const rp = msg.redpacket;
+        if (rp.status !== 'pending') {
+            _toast('这个红包已被处理，无法退回', 'info');
+            return;
+        }
+        const isMyPacket = msg.sender === 'user';
+        const amount = Number(rp.amount) || 0;
+        _confirmRefund(msg, isMyPacket, function () {
+            rp.status = 'refunded';
+            rp.refundedAt = Date.now();
+            rp.refundedBy = isMyPacket ? 'me' : 'partner';
+            // 金额原路退还
+            if (isMyPacket) {
+                _setMyBalance(_myBalance() + amount);
+            } else {
+                _setPartnerBalance(_partnerBalance() + amount);
+            }
+            _save();
+            _renderPacketStatus();
+            if (typeof playSound === 'function') { try { playSound('send'); } catch (e) {} }
+            // 系统提示
+            setTimeout(function () {
+                if (typeof addMessage === 'function') {
+                    addMessage({
+                        id: Date.now() + 1,
+                        sender: 'system',
+                        text: isMyPacket
+                            ? ('你撤回了发给' + _partnerName() + '的红包，¥' + _fmt(amount) + '已退回你的零钱')
+                            : ('你退回了' + _partnerName() + '的红包，¥' + _fmt(amount) + '已退回' + _partnerName() + '的零钱'),
+                        timestamp: new Date(),
+                        type: 'system'
+                    });
+                }
+            }, 500);
+            // 退回的是对方红包：对方收到退回后发来消息
+            if (!isMyPacket) {
+                const REACT = [
+                    '咦？宝贝怎么把红包退回来了呀～',
+                    '红包不要吗？那我先帮你收着，想用随时说哦～',
+                    '哈哈退回来啦，是不是怕我乱花钱？',
+                    '收到退回了～那我先存着，下次再塞给你！'
+                ];
+                setTimeout(function () {
+                    const txt = REACT[Math.floor(Math.random() * REACT.length)];
+                    if (typeof addMessage === 'function') {
+                        addMessage({
+                            id: Date.now() + 2,
+                            sender: _partnerName(),
+                            text: txt,
+                            timestamp: new Date(),
+                            status: 'received',
+                            favorited: false,
+                            note: null,
+                            type: 'normal'
+                        });
+                        if (typeof playSound === 'function') { try { playSound('message'); } catch (e) {} }
+                    }
+                }, 1400 + Math.random() * 1200);
+            }
+            _toast('红包已退回', 'success');
+        });
     };
 
     /* ---------------- 对方偶发红包 ---------------- */
@@ -462,23 +594,23 @@
     };
 
     function _schedulePartnerPackets() {
-        // 每 45 秒检查一次：超过冷却时间（默认 2.5 分钟）后，以一定概率对方发来红包
-        const COOLDOWN = 2.5 * 60 * 1000;
+        // 每 60 秒检查一次：超过冷却时间（默认 20 分钟）后，以较低概率对方发来红包
+        const COOLDOWN = 20 * 60 * 1000;
         setInterval(function () {
             try {
                 if (!_loaded) return;
                 const now = Date.now();
                 if (now < (_state.nextPartnerPacketAt || 0)) return;
                 if (now - (_state.lastPartnerPacket || 0) < COOLDOWN) return;
-                // 12% 概率触发
-                if (Math.random() < 0.12) {
+                // 3% 概率触发
+                if (Math.random() < 0.03) {
                     if (window._partnerSendRedPacket()) {
-                        // 触发后再隔 3~6 分钟才可能再发
-                        _state.nextPartnerPacketAt = now + (3 + Math.random() * 3) * 60 * 1000;
+                        // 触发后再隔 10~20 分钟才可能再发
+                        _state.nextPartnerPacketAt = now + (10 + Math.random() * 10) * 60 * 1000;
                     }
                 }
             } catch (e) { console.warn('[红包] 对方发红包调度失败', e); }
-        }, 45000);
+        }, 60000);
     }
 
     /* ---------------- 初始化 ---------------- */
@@ -498,12 +630,12 @@
         _waitSession(function () {
             _load().then(function () {
                 // 首屏：较大概率对方很快发来一个欢迎红包
-                const firstDelay = 25 + Math.random() * 40; // 25~65 秒
+                const firstDelay = 40 + Math.random() * 60; // 40~100 秒
                 setTimeout(function () {
                     try {
-                        if (Math.random() < 0.75) {
+                        if (Math.random() < 0.45) {
                             window._partnerSendRedPacket();
-                            _state.nextPartnerPacketAt = Date.now() + (3 + Math.random() * 3) * 60 * 1000;
+                            _state.nextPartnerPacketAt = Date.now() + (10 + Math.random() * 10) * 60 * 1000;
                         }
                     } catch (e) { console.warn('[红包] 首屏红包失败', e); }
                 }, firstDelay * 1000);
